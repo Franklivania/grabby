@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  verify:
+  web:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,13 +15,58 @@ jobs:
           bun-version: latest
       - name: Install
         run: bun install
-      - name: Typecheck
-        run: bun run typecheck
+      - name: Web typecheck
+        run: bun run --cwd apps/web typecheck
+      - name: Web lint
+        run: bun run --cwd apps/web lint
+      - name: Web test
+        run: bun run --cwd apps/web test
+      - name: Web build
+        run: bun run --cwd apps/web build
+
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install
+        run: bun install
+      - name: Core typecheck
+        run: bun run --cwd packages/core typecheck
+      - name: Core lint
+        run: bun run --cwd packages/core lint
+      - name: Core test
+        run: bun run --cwd packages/core test
+      - name: API typecheck
+        run: bun run --cwd apps/api typecheck
+      - name: API lint
+        run: bun run --cwd apps/api lint
+      - name: API test
+        run: bun run --cwd apps/api test
+      - name: API build
+        run: bun run --cwd apps/api build
+
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install
+        run: bun install
       - name: Lint
         run: bun run lint
-      - name: Test
-        run: bun run test
+      - name: Typecheck
+        run: bun run typecheck
       - name: Format check
         run: bun run format:check
-      - name: Build
-        run: bun run build
+
+  docker-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API Docker image
+        run: docker build -f apps/api/Dockerfile -t grabby-api:ci .

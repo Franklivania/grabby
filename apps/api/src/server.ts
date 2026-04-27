@@ -1,5 +1,5 @@
 import Fastify from 'fastify';
-import { chromium, type Browser, type LaunchOptions } from 'playwright';
+import { chromium, type Browser, type LaunchOptions, type Page } from 'playwright';
 import { extractFromSnapshot, type DomSnapshotNode } from '@grabby/core';
 import cors from '@fastify/cors';
 
@@ -8,6 +8,15 @@ const PORT = Number(process.env.PORT ?? 3001);
 const DOM_SILENCE_MS = 2000;
 const REQUEST_TIMEOUT_MS = 45000;
 const BROWSER_LAUNCH_TIMEOUT_MS = 30000;
+const WEBGL_UNSUPPORTED_MESSAGE =
+  'Seems like WebGL2 is not supported by your browser 😰 Please update it to access the experience.';
+
+type WebGlPageMetrics = {
+  canvasCount: number;
+  webglContextCount: number;
+  rafSignalCount: number;
+  meaningfulTextNodeCount: number;
+};
 
 const buildLaunchOptions = (overrides?: LaunchOptions): LaunchOptions => ({
   headless: true,
@@ -48,6 +57,20 @@ const validateUrl = (input: string): URL => {
   }
 };
 
+const isWebGlHeavyPage = (metrics: WebGlPageMetrics): boolean => {
+  const strongWebGlSignal =
+    metrics.canvasCount >= 4 &&
+    metrics.webglContextCount >= 1 &&
+    metrics.meaningfulTextNodeCount < 180;
+  const repeatedAnimationSignal =
+    metrics.webglContextCount >= 1 &&
+    metrics.rafSignalCount >= 2 &&
+    metrics.meaningfulTextNodeCount < 220;
+  const canvasDominantSignal = metrics.canvasCount >= 8 && metrics.meaningfulTextNodeCount < 120;
+
+  return strongWebGlSignal || repeatedAnimationSignal || canvasDominantSignal;
+};
+
 await app.register(cors, {
   origin: process.env.WEB_ORIGIN ?? '*',
 });
@@ -66,10 +89,11 @@ app.post<{ Body: { url?: string } }>('/scrape', async (request, reply) => {
   }
 
   let browser: Browser | null = null;
+  let page: Page | null = null;
 
   try {
     browser = await launchBrowserWithFallback(request.log);
-    const page = await browser.newPage();
+    page = await browser.newPage();
 
     await page.goto(target.toString(), { waitUntil: 'networkidle', timeout: REQUEST_TIMEOUT_MS });
     await page.evaluate(
@@ -90,6 +114,58 @@ app.post<{ Body: { url?: string } }>('/scrape', async (request, reply) => {
         }),
       DOM_SILENCE_MS,
     );
+
+    const webGlMetrics = await page.evaluate<WebGlPageMetrics>(() => {
+      const canvases = Array.from(document.querySelectorAll('canvas'));
+      let webglContextCount = 0;
+
+      for (const canvas of canvases) {
+        const webGlContext =
+          canvas.getContext('webgl2') ??
+          canvas.getContext('webgl') ??
+          canvas.getContext('experimental-webgl');
+        if (webGlContext) {
+          webglContextCount += 1;
+        }
+      }
+
+      const scriptContent = Array.from(document.scripts)
+        .map((script) => script.textContent ?? '')
+        .join('\n');
+      const rafSignalCount = [
+        scriptContent.includes('requestAnimationFrame('),
+        scriptContent.includes('.requestAnimationFrame('),
+        scriptContent.includes('cancelAnimationFrame('),
+        scriptContent.includes('THREE.WebGLRenderer'),
+      ].filter(Boolean).length;
+
+      const textWalker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      let meaningfulTextNodeCount = 0;
+      let currentNode = textWalker.nextNode();
+
+      while (currentNode) {
+        if ((currentNode.textContent ?? '').trim().length > 25) {
+          meaningfulTextNodeCount += 1;
+        }
+        currentNode = textWalker.nextNode();
+      }
+
+      return {
+        canvasCount: canvases.length,
+        webglContextCount,
+        rafSignalCount,
+        meaningfulTextNodeCount,
+      };
+    });
+
+    if (isWebGlHeavyPage(webGlMetrics)) {
+      request.log.info({ webGlMetrics }, 'WebGL-heavy page detected. Markdown generation skipped.');
+      return reply.status(200).send({
+        status: 'unsupported',
+        reason: 'webgl-heavy-unsupported',
+        message: WEBGL_UNSUPPORTED_MESSAGE,
+      });
+    }
 
     const snapshot = await page.evaluate<DomSnapshotNode[]>(() => {
       const isVisible = (element: Element): boolean => {
@@ -142,8 +218,6 @@ app.post<{ Body: { url?: string } }>('/scrape', async (request, reply) => {
       .header('Content-Type', 'text/markdown; charset=utf-8')
       .header('Content-Disposition', 'attachment; filename="grabby-output.md"')
       .send(markdown);
-
-    await page.close();
   } catch (error) {
     request.log.error(error);
     reply.status(500).send({
@@ -151,6 +225,9 @@ app.post<{ Body: { url?: string } }>('/scrape', async (request, reply) => {
         'Unable to scrape this URL right now. Browser launch failed or timed out on this machine.',
     });
   } finally {
+    if (page) {
+      await page.close();
+    }
     if (browser) {
       await browser.close();
     }

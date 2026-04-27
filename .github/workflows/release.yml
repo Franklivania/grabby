@@ -1,0 +1,92 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install
+        run: bun install
+      - name: Web checks
+        run: bun run --cwd apps/web typecheck && bun run --cwd apps/web lint && bun run --cwd apps/web test && bun run --cwd apps/web build
+      - name: Web release status artifact
+        run: echo "web=passed" > web-release-status.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-release-status
+          path: web-release-status.txt
+
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install
+        run: bun install
+      - name: API checks
+        run: bun run --cwd packages/core typecheck && bun run --cwd packages/core lint && bun run --cwd packages/core test && bun run --cwd apps/api typecheck && bun run --cwd apps/api lint && bun run --cwd apps/api test && bun run --cwd apps/api build
+      - name: API release status artifact
+        run: echo "api=passed" > api-release-status.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: api-release-status
+          path: api-release-status.txt
+
+  docker-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API Docker image
+        run: docker build -f apps/api/Dockerfile -t grabby-api:release .
+      - name: Docker release status artifact
+        run: echo "docker-api=passed" > docker-release-status.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docker-release-status
+          path: docker-release-status.txt
+
+  publish-release:
+    runs-on: ubuntu-latest
+    needs: [web, api, docker-api]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+      - name: Build release notes
+        run: |
+          {
+            echo "## Release Status"
+            echo ""
+            echo "- Web: passed"
+            echo "- API: passed"
+            echo "- Docker API: passed"
+            echo ""
+            echo "## Artifacts"
+            echo "- web-release-status"
+            echo "- api-release-status"
+            echo "- docker-release-status"
+          } > release-notes.md
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name || 'manual-release' }}
+          name: Grabby ${{ github.ref_name || 'manual-release' }}
+          body_path: release-notes.md
+          files: |
+            release-artifacts/**/web-release-status.txt
+            release-artifacts/**/api-release-status.txt
+            release-artifacts/**/docker-release-status.txt
