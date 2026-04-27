@@ -1,0 +1,14 @@
+---
+description: Grabby architecture and coding rules
+globs:
+  - "apps/**/*.ts"
+  - "packages/**/*.ts"
+alwaysApply: true
+---
+
+- TypeScript strict mode is required.
+- Avoid `any` unless explicitly justified.
+- Keep extraction business logic inside `packages/core`.
+- `apps/api` only orchestrates rendering and response handling.
+- `apps/web` remains static-first and accessible.
+- Use kebab-case for files and folders.

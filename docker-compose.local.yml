@@ -1,0 +1,11 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./apps/api/Dockerfile
+    ports:
+      - "${API_PORT:-3001}:3001"
+    environment:
+      PORT: "3001"
+      WEB_ORIGIN: "${WEB_ORIGIN:-http://localhost:5173}"
+    restart: unless-stopped

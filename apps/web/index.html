@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Grabby</title>
+  </head>
+  <body>
+    <main class="container">
+      <h1>Grabby</h1>
+      <p class="intro">Extract visible page text and links into a markdown file.</p>
+
+      <form id="scrape-form" class="card" aria-label="Scrape URL form">
+        <label for="url-input">Website URL</label>
+        <input
+          id="url-input"
+          name="url"
+          type="url"
+          required
+          placeholder="https://example.com"
+          autocomplete="url"
+        />
+        <button id="submit-btn" type="submit">Extract Markdown</button>
+      </form>
+
+      <p id="status" role="status" aria-live="polite"></p>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+  </html>

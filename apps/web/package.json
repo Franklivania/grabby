@@ -1,0 +1,17 @@
+{
+  "name": "@grabby/web",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bunx vite",
+    "build": "bunx vite build",
+    "typecheck": "bunx tsc -p tsconfig.json --noEmit",
+    "lint": "bunx eslint src tests --ext .ts",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "sass": "^1.87.0",
+    "vite": "^6.3.5"
+  }
+}

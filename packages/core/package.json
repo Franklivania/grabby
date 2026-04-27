@@ -1,0 +1,15 @@
+{
+  "name": "@grabby/core",
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "bunx tsc -p tsconfig.json --noEmit false --outDir dist",
+    "dev": "bunx tsc -p tsconfig.json --watch --noEmit",
+    "typecheck": "bunx tsc -p tsconfig.json --noEmit",
+    "lint": "bunx eslint src tests --ext .ts",
+    "test": "bun test"
+  }
+}

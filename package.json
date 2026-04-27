@@ -1,0 +1,36 @@
+{
+  "name": "grabby",
+  "private": true,
+  "packageManager": "bun@1.2.19",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail -n web,api \"bun run --cwd apps/web dev\" \"bun run --cwd apps/api dev\"",
+    "dev:web": "bun run --cwd apps/web dev",
+    "dev:api:docker:build": "docker compose -f docker-compose.local.yml build api",
+    "dev:api:docker:up": "docker compose -f docker-compose.local.yml up -d api",
+    "dev:api:docker:logs": "docker compose -f docker-compose.local.yml logs -f api",
+    "dev:api:docker:down": "docker compose -f docker-compose.local.yml down",
+    "build": "concurrently --kill-others-on-fail -n core,api,web \"bun run --cwd packages/core build\" \"bun run --cwd apps/api build\" \"bun run --cwd apps/web build\"",
+    "typecheck": "concurrently --kill-others-on-fail --max-processes 1 -n core,api,web \"bun run --cwd packages/core typecheck\" \"bun run --cwd apps/api typecheck\" \"bun run --cwd apps/web typecheck\"",
+    "lint": "concurrently --kill-others-on-fail -n core,api,web \"bun run --cwd packages/core lint\" \"bun run --cwd apps/api lint\" \"bun run --cwd apps/web lint\"",
+    "test": "concurrently --kill-others-on-fail -n core,api,web \"bun run --cwd packages/core test\" \"bun run --cwd apps/api test\" \"bun run --cwd apps/web test\"",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "@types/bun": "latest",
+    "@typescript-eslint/eslint-plugin": "^8.31.0",
+    "@typescript-eslint/parser": "^8.31.0",
+    "eslint": "^9.25.1",
+    "eslint-config-prettier": "^10.1.2",
+    "husky": "^9.1.7",
+    "prettier": "^3.5.3",
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.3"
+  }
+}

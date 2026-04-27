@@ -1,0 +1,16 @@
+:root {
+  --bg: #f9fafb;
+  --card: #ffffff;
+  --text: #111827;
+  --subtle: #4b5563;
+  --border: #d1d5db;
+  --focus: #2563eb;
+  --radius: 0.75rem;
+}
+
+body {
+  font-family: Inter, system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
