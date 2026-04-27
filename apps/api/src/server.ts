@@ -10,6 +10,7 @@ const REQUEST_TIMEOUT_MS = 45000;
 const BROWSER_LAUNCH_TIMEOUT_MS = 30000;
 const WEBGL_UNSUPPORTED_MESSAGE =
   'Seems like WebGL2 is not supported by your browser 😰 Please update it to access the experience.';
+const LOCAL_DEV_ALLOWED_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173'];
 
 type WebGlPageMetrics = {
   canvasCount: number;
@@ -17,6 +18,14 @@ type WebGlPageMetrics = {
   rafSignalCount: number;
   meaningfulTextNodeCount: number;
 };
+
+const normalizeOrigin = (value: string): string => value.trim().replace(/\/+$/, '');
+
+const parseOriginList = (value?: string): string[] =>
+  (value ?? '')
+    .split(',')
+    .map((entry) => normalizeOrigin(entry))
+    .filter((entry) => entry.length > 0);
 
 const buildLaunchOptions = (overrides?: LaunchOptions): LaunchOptions => ({
   headless: true,
@@ -71,8 +80,30 @@ const isWebGlHeavyPage = (metrics: WebGlPageMetrics): boolean => {
   return strongWebGlSignal || repeatedAnimationSignal || canvasDominantSignal;
 };
 
+const configuredOrigins = [
+  ...parseOriginList(process.env.WEB_ORIGINS),
+  ...parseOriginList(process.env.WEB_ORIGIN),
+];
+
+const allowedOrigins =
+  configuredOrigins.length > 0
+    ? configuredOrigins
+    : process.env.NODE_ENV === 'production'
+      ? []
+      : LOCAL_DEV_ALLOWED_ORIGINS;
+
+const allowedOriginSet = new Set(allowedOrigins.map((origin) => normalizeOrigin(origin)));
+
 await app.register(cors, {
-  origin: process.env.WEB_ORIGIN ?? '*',
+  origin: (origin, callback) => {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    const normalizedOrigin = normalizeOrigin(origin);
+    callback(null, allowedOriginSet.has(normalizedOrigin));
+  },
 });
 
 app.post<{ Body: { url?: string } }>('/scrape', async (request, reply) => {
