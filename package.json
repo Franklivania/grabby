@@ -17,8 +17,8 @@
     "typecheck": "concurrently --kill-others-on-fail --max-processes 1 -n core,api,web \"bun run --cwd packages/core typecheck\" \"bun run --cwd apps/api typecheck\" \"bun run --cwd apps/web typecheck\"",
     "lint": "concurrently --kill-others-on-fail -n core,api,web \"bun run --cwd packages/core lint\" \"bun run --cwd apps/api lint\" \"bun run --cwd apps/web lint\"",
     "test": "concurrently --kill-others-on-fail -n core,api,web \"bun run --cwd packages/core test\" \"bun run --cwd apps/api test\" \"bun run --cwd apps/web test\"",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format": "prettier --write \"apps/web/**/*.{ts,scss,html,json}\" \"apps/api/**/*.{ts,json}\" \"packages/core/**/*.ts\" \".github/workflows/*.yml\" \"*.{json,cjs,mjs}\"",
+    "format:check": "prettier --check \"apps/web/**/*.{ts,scss,html,json}\" \"apps/api/**/*.{ts,json}\" \"packages/core/**/*.ts\" \".github/workflows/*.yml\" \"*.{json,cjs,mjs}\"",
     "prepare": "husky"
   },
   "devDependencies": {

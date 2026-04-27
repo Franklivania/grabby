@@ -2,6 +2,8 @@
 
 Grabby is a URL-to-Markdown extractor. It renders pages with Playwright, extracts visible text and links, and returns a downloadable `.md` file.
 
+![Grabby logo](https://res.cloudinary.com/dgtoh3s2a/image/upload/v1777301965/grabby_uwvtql.png)
+
 ## Architecture
 
 - `apps/web`: static TypeScript + SCSS frontend
@@ -82,7 +84,22 @@ Use this only for quick debugging. On some Windows hosts, Playwright can fail to
 1. Start the monorepo with `bun run dev`
 2. Open the web app
 3. Enter a URL and submit
-4. Download the generated markdown
+4. Wait for `Ready`
+5. Preview markdown in the side panel
+6. Use `Copy Markdown`, `Open Split View`, or `Download Markdown`
+
+### Loading and progress
+
+- The web app uses staged loading messages while scraping is in progress.
+- A spinner animation is shown until the API response is complete.
+- On success, the status transitions to `Ready`.
+
+### WebGL-heavy page behavior
+
+- The API checks rendered page signals for WebGL-heavy experiences.
+- If the target is classified as WebGL-heavy, markdown generation is skipped.
+- The UI displays:
+  - `Seems like WebGL2 is not supported by your browser 😰 Please update it to access the experience.`
 
 ## Quality Commands
 
@@ -91,12 +108,24 @@ bun run typecheck
 bun run lint
 bun run test
 bun run build
+bun run format:check
 ```
+
+Pre-commit checks run lint, typecheck, test, and scoped formatting checks.
 
 ## Deployment
 
 - Frontend: Netlify via `netlify.toml`
 - API: Render via `render.yaml` and `apps/api/Dockerfile`
+
+## Release and CI Status
+
+- Pull requests and `main` pushes run CI checks for:
+  - web (`typecheck`, `lint`, `test`, `build`)
+  - api + core (`typecheck`, `lint`, `test`, `build`)
+  - API Docker image build validation
+- Release workflow (`.github/workflows/release.yml`) is tag-driven (`v*`) and manual-dispatch capable.
+- Release publishes GitHub release notes plus status artifacts for web, api, and docker verification.
 
 ## Constraints
 

@@ -3,28 +3,90 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="icon"
+      type="image/png"
+      href="https://res.cloudinary.com/dgtoh3s2a/image/upload/v1777301965/grabby_uwvtql.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      href="https://res.cloudinary.com/dgtoh3s2a/image/upload/v1777301965/grabby_uwvtql.png"
+    />
+    <script src="https://code.iconify.design/iconify-icon/3.0.0/iconify-icon.min.js"></script>
     <title>Grabby</title>
   </head>
   <body>
     <main class="container">
-      <h1>Grabby</h1>
-      <p class="intro">Extract visible page text and links into a markdown file.</p>
+      <section class="split-layout__left" aria-label="Input and results list">
+        <h1 class="brand app-chrome" hidden>
+          <img
+            src="https://res.cloudinary.com/dgtoh3s2a/image/upload/v1777301965/grabby_uwvtql.png"
+            alt="Grabby logo"
+            width="36"
+            height="36"
+          />
+          Grabby
+        </h1>
+        <p class="intro app-chrome" hidden>
+          Extract visible page text and links into a markdown file.
+        </p>
 
-      <form id="scrape-form" class="card" aria-label="Scrape URL form">
-        <label for="url-input">Website URL</label>
-        <input
-          id="url-input"
-          name="url"
-          type="url"
-          required
-          placeholder="https://example.com"
-          autocomplete="url"
-        />
-        <button id="submit-btn" type="submit">Extract Markdown</button>
-      </form>
+        <form id="scrape-form" class="card" aria-label="Scrape URL form">
+          <label for="url-input">Website URL</label>
+          <input
+            id="url-input"
+            name="url"
+            type="url"
+            required
+            placeholder="https://example.com"
+            autocomplete="url"
+          />
+          <button id="submit-btn" type="submit">Extract Markdown</button>
+        </form>
 
-      <p id="status" role="status" aria-live="polite"></p>
+        <p id="status" role="status" aria-live="polite" hidden></p>
+
+        <section id="workspace" class="workspace" aria-label="Scrape workspace" hidden>
+          <div id="pill-rail" class="pill-rail" aria-label="Generated markdown files"></div>
+        </section>
+      </section>
+
+      <aside id="preview-pane" class="preview-pane" aria-label="Preview pane" hidden>
+        <section id="split-panel" class="split-panel" aria-label="Markdown preview panel" hidden>
+          <header class="result-panel__header">
+            <h2 id="active-file-name" hidden></h2>
+            <div class="result-panel__actions">
+              <button
+                id="copy-btn"
+                type="button"
+                class="icon-button secondary"
+                disabled
+                aria-label="Copy markdown"
+              >
+                <iconify-icon icon="solar:copy-outline"></iconify-icon>
+                <span>Copy</span>
+              </button>
+              <span id="copy-tooltip" class="copy-tooltip" role="status" aria-live="polite" hidden
+                >Copied</span
+              >
+              <button
+                id="close-preview-btn"
+                type="button"
+                class="secondary"
+                aria-label="Close preview"
+              >
+                <iconify-icon icon="solar:close-circle-outline"></iconify-icon>
+                <span>Close</span>
+              </button>
+            </div>
+          </header>
+          <p id="result-message" class="result-panel__message">
+            Select a file from the left pane to preview markdown.
+          </p>
+          <pre id="markdown-preview" class="markdown-preview"></pre>
+        </section>
+      </aside>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
-  </html>
+</html>

@@ -3,4 +3,7 @@ dist
 coverage
 .turbo
 PRD.md
+*.md
+Dockerfile
+docker-compose*.yml
 .cursor*
