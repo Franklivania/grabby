@@ -22,15 +22,25 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1",
     "@types/bun": "latest",
     "@typescript-eslint/eslint-plugin": "^8.31.0",
     "@typescript-eslint/parser": "^8.31.0",
+    "concurrently": "^9.2.1",
     "eslint": "^9.25.1",
     "eslint-config-prettier": "^10.1.2",
     "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.5.3",
     "turbo": "^2.5.0",
     "typescript": "^5.8.3"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,yaml,yml,md,css,scss}": [
+      "prettier --write"
+    ]
   }
 }

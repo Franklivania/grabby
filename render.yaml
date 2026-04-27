@@ -5,6 +5,3 @@ services:
     dockerfilePath: ./apps/api/Dockerfile
     rootDir: .
     autoDeploy: true
-    envVars:
-      - key: PORT
-        value: 3001

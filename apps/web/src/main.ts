@@ -17,7 +17,9 @@ const copyButton = document.querySelector<HTMLButtonElement>('#copy-btn');
 const copyTooltip = document.querySelector<HTMLElement>('#copy-tooltip');
 const closePreviewButton = document.querySelector<HTMLButtonElement>('#close-preview-btn');
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001';
+const normalizeBaseUrl = (value: string): string => value.trim().replace(/\/+$/, '');
+const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = typeof rawApiBaseUrl === 'string' ? normalizeBaseUrl(rawApiBaseUrl) : '';
 const LOADING_TICK_MS = 1400;
 const SESSION_STORAGE_KEY = 'grabby-session-history';
 const WEBGL_UNSUPPORTED_MESSAGE =
@@ -335,6 +337,9 @@ form?.addEventListener('submit', async (event) => {
   }
 
   try {
+    if (!API_BASE_URL) {
+      throw new Error('VITE_API_BASE_URL is not configured. Please set it in the web environment.');
+    }
     setResultMessage('Working on your extraction...');
     if (button) button.disabled = true;
     startLoadingMessages();
