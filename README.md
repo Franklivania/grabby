@@ -4,6 +4,10 @@ Grabby is a URL-to-Markdown extractor. It renders pages with Playwright, extract
 
 ![Grabby logo](https://res.cloudinary.com/dgtoh3s2a/image/upload/v1777301965/grabby_uwvtql.png)
 
+## Contributor Startup
+
+If you want to contribute, start with [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md). It defines the issue approval flow, fork-and-PR process, Bun-only package policy, local setup steps, naming rules, and pull request expectations.
+
 ## Architecture
 
 - `apps/web`: static TypeScript + SCSS frontend

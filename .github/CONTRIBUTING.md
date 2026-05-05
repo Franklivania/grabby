@@ -1,8 +1,8 @@
+Create an issue of what you want to work on, then it would be approved to you, if it is not already being worked on.
+
 # Contributing to Grabby
 
 This project uses a fork-and-PR workflow against the `dev` branch. Keep changes small, intentional, and aligned with the repository architecture.
-
-> Create an issue of what you want to work on, then it would be approved to you, if it is not already being worked on.
 
 ## Contribution Flow
 
@@ -12,9 +12,11 @@ This project uses a fork-and-PR workflow against the `dev` branch. Keep changes 
 4. Create your branch from `dev`.
 5. Make your changes with focused commits.
 6. Run the required checks locally.
-7. Open a pull request from your fork into `dev`.
+7. Open a pull request from your fork into `dev` and complete the repository PR template.
 
 Do not open direct pull requests to `main` unless a maintainer explicitly asks for that.
+
+Use the repository PR template for every contribution. It covers what changed, why it changed, testing status, access instructions, and proof of work where relevant.
 
 ## Local Setup
 
