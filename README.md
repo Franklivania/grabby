@@ -4,6 +4,10 @@ Grabby is a URL-to-Markdown extractor. It renders pages with Playwright, extract
 
 ![Grabby logo](https://res.cloudinary.com/dgtoh3s2a/image/upload/v1777301965/grabby_uwvtql.png)
 
+## Contributor Startup
+
+If you want to contribute, start with [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md). It defines the issue approval flow, fork-and-PR process, Bun-only package policy, local setup steps, naming rules, and pull request expectations.
+
 ## Architecture
 
 - `apps/web`: static TypeScript + SCSS frontend
@@ -123,8 +127,7 @@ Pre-commit checks run lint, typecheck, test, and scoped formatting checks.
 - Netlify (`apps/web` build):
   - `VITE_API_BASE_URL=https://grabby-b4e3.onrender.com`
 - Render (`apps/api` runtime):
-  - `WEB_ORIGIN=https://grabby-c.netlify.app`
-  - optional: `WEB_ORIGINS` as a comma-separated allowlist for multiple frontend domains.
+  - `WEB_ORIGINS=https://grabby.lol,https://www.grabby.lol,https://grabby-c.netlify.app`
 
 Important: set origin values without a trailing slash to avoid strict CORS origin mismatch.
 
