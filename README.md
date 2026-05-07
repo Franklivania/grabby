@@ -127,8 +127,7 @@ Pre-commit checks run lint, typecheck, test, and scoped formatting checks.
 - Netlify (`apps/web` build):
   - `VITE_API_BASE_URL=https://grabby-b4e3.onrender.com`
 - Render (`apps/api` runtime):
-  - `WEB_ORIGIN=https://grabby-c.netlify.app`
-  - optional: `WEB_ORIGINS` as a comma-separated allowlist for multiple frontend domains.
+  - `WEB_ORIGINS=https://grabby.lol,https://www.grabby.lol,https://grabby-c.netlify.app`
 
 Important: set origin values without a trailing slash to avoid strict CORS origin mismatch.
 
