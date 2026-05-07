@@ -21,9 +21,19 @@ const normalizeBaseUrl = (value: string): string => value.trim().replace(/\/+$/,
 const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const API_BASE_URL = typeof rawApiBaseUrl === 'string' ? normalizeBaseUrl(rawApiBaseUrl) : '';
 const LOADING_TICK_MS = 1400;
+const HEALTH_REQUEST_TIMEOUT_MS = 5000;
+const WARMUP_MAX_ATTEMPTS = 6;
+const WARMUP_BASE_DELAY_MS = 1200;
 const SESSION_STORAGE_KEY = 'grabby-session-history';
 const WEBGL_UNSUPPORTED_MESSAGE =
   'Seems like WebGL2 is not supported by your browser 😰 Please update it to access the experience.';
+const WARMUP_MESSAGES = [
+  'Waking backend service...',
+  'Waiting for API container to start...',
+  'Booting browser runtime on the server...',
+  'Checking service readiness...',
+  'Almost ready...',
+] as const;
 
 type ScrapeUnsupportedResponse = {
   status: 'unsupported';
@@ -56,6 +66,8 @@ let isPreviewOpen = false;
 let loadingTimer: number | null = null;
 let copyTooltipTimer: number | null = null;
 let loadingIndex = 0;
+let hasWarmedUp = false;
+let warmupPromise: Promise<void> | null = null;
 
 const setStatus = (message: string): void => {
   if (!status) return;
@@ -179,6 +191,69 @@ const startLoadingMessages = (): void => {
 const finishLoadingMessages = (): void => {
   stopLoadingMessages();
   setStatus(loadingMessages[loadingMessages.length - 1] ?? 'Done');
+};
+
+const waitFor = async (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+
+const isApiHealthy = async (): Promise<boolean> => {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), HEALTH_REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    return response.ok;
+  } catch {
+    return false;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+};
+
+const warmupService = async (): Promise<void> => {
+  if (hasWarmedUp) return;
+  if (warmupPromise) {
+    await warmupPromise;
+    return;
+  }
+
+  warmupPromise = (async () => {
+    for (let attempt = 0; attempt < WARMUP_MAX_ATTEMPTS; attempt += 1) {
+      const messageIndex = Math.min(attempt, WARMUP_MESSAGES.length - 1);
+      setStatus(WARMUP_MESSAGES[messageIndex] ?? 'Waking backend service...');
+
+      const healthy = await isApiHealthy();
+      if (healthy) {
+        hasWarmedUp = true;
+        setStatus('All services are ready. Starting extraction...');
+        return;
+      }
+
+      const isFinalAttempt = attempt === WARMUP_MAX_ATTEMPTS - 1;
+      if (isFinalAttempt) {
+        break;
+      }
+
+      const retryDelayMs = WARMUP_BASE_DELAY_MS * 2 ** attempt;
+      setStatus(
+        `Startup in progress (attempt ${attempt + 1}/${WARMUP_MAX_ATTEMPTS}). Retrying in ${Math.ceil(retryDelayMs / 1000)}s...`,
+      );
+      await waitFor(retryDelayMs);
+    }
+
+    throw new Error('Startup in progress. Please wait a moment and try again.');
+  })();
+
+  try {
+    await warmupPromise;
+  } finally {
+    warmupPromise = null;
+  }
 };
 
 const syncScreenState = (): void => {
@@ -342,6 +417,7 @@ form?.addEventListener('submit', async (event) => {
     }
     setResultMessage('Working on your extraction...');
     if (button) button.disabled = true;
+    await warmupService();
     startLoadingMessages();
 
     const response = await fetch(`${API_BASE_URL}/scrape`, {

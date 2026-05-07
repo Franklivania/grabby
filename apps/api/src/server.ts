@@ -80,10 +80,7 @@ const isWebGlHeavyPage = (metrics: WebGlPageMetrics): boolean => {
   return strongWebGlSignal || repeatedAnimationSignal || canvasDominantSignal;
 };
 
-const configuredOrigins = [
-  ...parseOriginList(process.env.WEB_ORIGINS),
-  ...parseOriginList(process.env.WEB_ORIGIN),
-];
+const configuredOrigins = parseOriginList(process.env.WEB_ORIGINS);
 
 const allowedOrigins =
   configuredOrigins.length > 0
