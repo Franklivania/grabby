@@ -29,6 +29,7 @@ COPY packages/core/package.json packages/core/package.json
 RUN bun install
 
 COPY apps/api apps/api
+COPY apps/docs apps/docs
 COPY packages/core packages/core
 
 WORKDIR /app/apps/api

@@ -72,6 +72,28 @@ button:disabled {
   color: #111827;
 }
 
+.mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.mode-toggle--disabled {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.mode-toggle__option {
+  background: #e5e7eb;
+  color: #111827;
+  border: 1px solid var(--border);
+}
+
+.mode-toggle__option--active {
+  background: #111827;
+  color: #fff;
+}
+
 input:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--focus);
