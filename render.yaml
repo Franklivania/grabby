@@ -5,3 +5,6 @@ services:
     dockerfilePath: ./apps/api/Dockerfile
     rootDir: .
     autoDeploy: true
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
