@@ -286,6 +286,69 @@ const warmupService = async (): Promise<void> => {
   }
 };
 
+const waitFor = async (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+
+const isApiHealthy = async (): Promise<boolean> => {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), HEALTH_REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    return response.ok;
+  } catch {
+    return false;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+};
+
+const warmupService = async (): Promise<void> => {
+  if (hasWarmedUp) return;
+  if (warmupPromise) {
+    await warmupPromise;
+    return;
+  }
+
+  warmupPromise = (async () => {
+    for (let attempt = 0; attempt < WARMUP_MAX_ATTEMPTS; attempt += 1) {
+      const messageIndex = Math.min(attempt, WARMUP_MESSAGES.length - 1);
+      setStatus(WARMUP_MESSAGES[messageIndex] ?? 'Waking backend service...');
+
+      const healthy = await isApiHealthy();
+      if (healthy) {
+        hasWarmedUp = true;
+        setStatus('All services are ready. Starting extraction...');
+        return;
+      }
+
+      const isFinalAttempt = attempt === WARMUP_MAX_ATTEMPTS - 1;
+      if (isFinalAttempt) {
+        break;
+      }
+
+      const retryDelayMs = WARMUP_BASE_DELAY_MS * 2 ** attempt;
+      setStatus(
+        `Startup in progress (attempt ${attempt + 1}/${WARMUP_MAX_ATTEMPTS}). Retrying in ${Math.ceil(retryDelayMs / 1000)}s...`,
+      );
+      await waitFor(retryDelayMs);
+    }
+
+    throw new Error('Startup in progress. Please wait a moment and try again.');
+  })();
+
+  try {
+    await warmupPromise;
+  } finally {
+    warmupPromise = null;
+  }
+};
+
 const syncScreenState = (): void => {
   const hasResults = scrapeHistory.length > 0;
   const hasActivePreview = isPreviewOpen && getActiveScrape() !== null;
