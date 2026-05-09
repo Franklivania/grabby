@@ -1,6 +1,7 @@
 import '../styles/main.scss';
 import loadingMessages from './loading-messages.json';
-import { getFilenameFromUrl } from './scrape-session';
+import designLoadingMessages from './loading-messages-design.json';
+import { getApiBaseUrl, getFilenameFromUrl, scrapeDesign } from './scrape-session';
 
 const form = document.querySelector<HTMLFormElement>('#scrape-form');
 const input = document.querySelector<HTMLInputElement>('#url-input');
@@ -16,10 +17,10 @@ const activeFileName = document.querySelector<HTMLElement>('#active-file-name');
 const copyButton = document.querySelector<HTMLButtonElement>('#copy-btn');
 const copyTooltip = document.querySelector<HTMLElement>('#copy-tooltip');
 const closePreviewButton = document.querySelector<HTMLButtonElement>('#close-preview-btn');
+const modeToggle = document.querySelector<HTMLElement>('#mode-toggle');
+const modeOptions = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-mode]'));
 
-const normalizeBaseUrl = (value: string): string => value.trim().replace(/\/+$/, '');
-const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-const API_BASE_URL = typeof rawApiBaseUrl === 'string' ? normalizeBaseUrl(rawApiBaseUrl) : '';
+const API_BASE_URL = getApiBaseUrl();
 const LOADING_TICK_MS = 1400;
 const HEALTH_REQUEST_TIMEOUT_MS = 5000;
 const WARMUP_MAX_ATTEMPTS = 6;
@@ -51,8 +52,11 @@ type ScrapeItem = {
   hostname: string;
   filename: string;
   markdown: string;
+  mode: Mode;
   createdAt: number;
 };
+
+type Mode = 'markdown' | 'design';
 
 type StoredSessionState = {
   scrapeHistory: ScrapeItem[];
@@ -66,8 +70,10 @@ let isPreviewOpen = false;
 let loadingTimer: number | null = null;
 let copyTooltipTimer: number | null = null;
 let loadingIndex = 0;
+let activeLoadingMessages: readonly string[] = loadingMessages;
 let hasWarmedUp = false;
 let warmupPromise: Promise<void> | null = null;
+let mode: Mode = 'markdown';
 
 const setStatus = (message: string): void => {
   if (!status) return;
@@ -170,17 +176,41 @@ const renderLoadingStatus = (message: string): void => {
   }
 };
 
+const setModeToggleDisabled = (disabled: boolean): void => {
+  if (!modeToggle) return;
+  modeToggle.classList.toggle('mode-toggle--disabled', disabled);
+  for (const option of modeOptions) {
+    option.disabled = disabled;
+  }
+};
+
+const updateModeUi = (): void => {
+  for (const option of modeOptions) {
+    const optionMode = option.dataset.mode;
+    const isActive = optionMode === mode;
+    option.classList.toggle('mode-toggle__option--active', isActive);
+    option.setAttribute('aria-pressed', String(isActive));
+  }
+  if (button) {
+    button.textContent = mode === 'design' ? 'Generate DESIGN.md' : 'Extract Markdown';
+  }
+};
+
+const setLoadingMessageSet = (targetMode: Mode): void => {
+  activeLoadingMessages = targetMode === 'design' ? designLoadingMessages : loadingMessages;
+};
+
 const startLoadingMessages = (): void => {
   if (!status) return;
   stopLoadingMessages();
   loadingIndex = 0;
   status.classList.add('status--loading');
-  renderLoadingStatus(loadingMessages[loadingIndex] ?? 'Loading...');
+  renderLoadingStatus(activeLoadingMessages[loadingIndex] ?? 'Loading...');
 
   loadingTimer = window.setInterval(() => {
-    const nextIndex = Math.min(loadingIndex + 1, loadingMessages.length - 2);
+    const nextIndex = Math.min(loadingIndex + 1, activeLoadingMessages.length - 2);
     loadingIndex = nextIndex;
-    const message = loadingMessages[nextIndex] ?? 'Loading...';
+    const message = activeLoadingMessages[nextIndex] ?? 'Loading...';
     const textElement = status.querySelector<HTMLElement>('.status__text');
     if (textElement) {
       textElement.textContent = message;
@@ -190,7 +220,7 @@ const startLoadingMessages = (): void => {
 
 const finishLoadingMessages = (): void => {
   stopLoadingMessages();
-  setStatus(loadingMessages[loadingMessages.length - 1] ?? 'Done');
+  setStatus(activeLoadingMessages[activeLoadingMessages.length - 1] ?? 'Done');
 };
 
 const waitFor = async (ms: number): Promise<void> =>
@@ -332,14 +362,16 @@ const renderWorkspace = (): void => {
   renderActivePreview();
 };
 
-const addScrapeItem = (sourceUrl: string, markdown: string): void => {
-  const { hostname, filename } = getFilenameFromUrl(sourceUrl);
+const addScrapeItem = (sourceUrl: string, markdown: string, itemMode: Mode): void => {
+  const markdownFilename = getFilenameFromUrl(sourceUrl);
+  const filename = itemMode === 'design' ? 'DESIGN.md' : markdownFilename.filename;
   const item: ScrapeItem = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     sourceUrl,
-    hostname,
+    hostname: markdownFilename.hostname,
     filename,
     markdown,
+    mode: itemMode,
     createdAt: Date.now(),
   };
   scrapeHistory.push(item);
@@ -400,7 +432,18 @@ closePreviewButton?.addEventListener('click', () => {
 });
 
 restoreSessionState();
+updateModeUi();
 renderWorkspace();
+
+modeOptions.forEach((option) => {
+  option.addEventListener('click', () => {
+    const selectedMode = option.dataset.mode;
+    if (selectedMode === 'markdown' || selectedMode === 'design') {
+      mode = selectedMode;
+      updateModeUi();
+    }
+  });
+});
 
 form?.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -417,39 +460,48 @@ form?.addEventListener('submit', async (event) => {
     }
     setResultMessage('Working on your extraction...');
     if (button) button.disabled = true;
+    setModeToggleDisabled(true);
+    const requestMode = mode;
+    setLoadingMessageSet(requestMode);
     await warmupService();
     startLoadingMessages();
 
-    const response = await fetch(`${API_BASE_URL}/scrape`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
-    });
+    let output = '';
+    if (requestMode === 'markdown') {
+      const response = await fetch(`${API_BASE_URL}/scrape`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
 
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as ScrapeErrorResponse | null;
-      throw new Error(payload?.error ?? 'Failed to generate markdown.');
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as ScrapeErrorResponse | null;
+        throw new Error(payload?.error ?? 'Failed to generate markdown.');
+      }
+
+      const contentType = response.headers.get('content-type') ?? '';
+      if (contentType.includes('application/json')) {
+        const payload = (await response.json()) as ScrapeUnsupportedResponse;
+        output =
+          payload.reason === 'webgl-heavy-unsupported'
+            ? payload.message
+            : WEBGL_UNSUPPORTED_MESSAGE;
+      } else {
+        output = await response.text();
+      }
+    } else {
+      output = await scrapeDesign(url);
     }
 
-    const contentType = response.headers.get('content-type') ?? '';
-    if (contentType.includes('application/json')) {
-      const payload = (await response.json()) as ScrapeUnsupportedResponse;
-      const message =
-        payload.reason === 'webgl-heavy-unsupported' ? payload.message : WEBGL_UNSUPPORTED_MESSAGE;
-      addScrapeItem(url, message);
-      finishLoadingMessages();
-      setStatus(`Ready. ${getFilenameFromUrl(url).filename} created. Click the pill to preview.`);
-      return;
-    }
-
-    const markdown = await response.text();
-    addScrapeItem(url, markdown);
+    addScrapeItem(url, output, requestMode);
     finishLoadingMessages();
-    setStatus(`Ready. ${getFilenameFromUrl(url).filename} created. Click the pill to preview.`);
+    const readyFilename = requestMode === 'design' ? 'DESIGN.md' : getFilenameFromUrl(url).filename;
+    setStatus(`Ready. ${readyFilename} created. Click the pill to preview.`);
   } catch (error) {
     stopLoadingMessages();
     setStatus((error as Error).message);
   } finally {
     if (button) button.disabled = false;
+    setModeToggleDisabled(false);
   }
 });

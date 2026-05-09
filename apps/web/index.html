@@ -41,6 +41,18 @@
             placeholder="https://example.com"
             autocomplete="url"
           />
+          <div id="mode-toggle" class="mode-toggle" role="group" aria-label="Extraction mode">
+            <button
+              type="button"
+              data-mode="markdown"
+              class="mode-toggle__option mode-toggle__option--active"
+            >
+              Extract Markdown
+            </button>
+            <button type="button" data-mode="design" class="mode-toggle__option">
+              Generate DESIGN.md
+            </button>
+          </div>
           <button id="submit-btn" type="submit">Extract Markdown</button>
         </form>
 

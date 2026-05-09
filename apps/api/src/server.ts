@@ -1,7 +1,9 @@
 import Fastify from 'fastify';
+import { Readable } from 'node:stream';
 import { chromium, type Browser, type LaunchOptions, type Page } from 'playwright';
-import { extractFromSnapshot, type DomSnapshotNode } from '@grabby/core';
+import { extractDesignTokens, extractFromSnapshot, type DomSnapshotNode } from '@grabby/core';
 import cors from '@fastify/cors';
+import { generateDesignMd } from './design-ai';
 
 const app = Fastify({ logger: true });
 const PORT = Number(process.env.PORT ?? 3001);
@@ -11,6 +13,10 @@ const BROWSER_LAUNCH_TIMEOUT_MS = 30000;
 const WEBGL_UNSUPPORTED_MESSAGE =
   'Seems like WebGL2 is not supported by your browser 😰 Please update it to access the experience.';
 const LOCAL_DEV_ALLOWED_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+
+if (!process.env.GROQ_API_KEY) {
+  throw new Error('GROQ_API_KEY is required for /design endpoint');
+}
 
 type WebGlPageMetrics = {
   canvasCount: number;
@@ -80,6 +86,27 @@ const isWebGlHeavyPage = (metrics: WebGlPageMetrics): boolean => {
   return strongWebGlSignal || repeatedAnimationSignal || canvasDominantSignal;
 };
 
+const waitForDomSilence = async (page: Page): Promise<void> => {
+  await page.evaluate(
+    (silenceMs: number) =>
+      new Promise<void>((resolve) => {
+        let timer = window.setTimeout(done, silenceMs);
+        const observer = new MutationObserver(() => {
+          window.clearTimeout(timer);
+          timer = window.setTimeout(done, silenceMs);
+        });
+
+        function done() {
+          observer.disconnect();
+          resolve();
+        }
+
+        observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+      }),
+    DOM_SILENCE_MS,
+  );
+};
+
 const configuredOrigins = parseOriginList(process.env.WEB_ORIGINS);
 
 const allowedOrigins =
@@ -124,24 +151,7 @@ app.post<{ Body: { url?: string } }>('/scrape', async (request, reply) => {
     page = await browser.newPage();
 
     await page.goto(target.toString(), { waitUntil: 'networkidle', timeout: REQUEST_TIMEOUT_MS });
-    await page.evaluate(
-      (silenceMs: number) =>
-        new Promise<void>((resolve) => {
-          let timer = window.setTimeout(done, silenceMs);
-          const observer = new MutationObserver(() => {
-            window.clearTimeout(timer);
-            timer = window.setTimeout(done, silenceMs);
-          });
-
-          function done() {
-            observer.disconnect();
-            resolve();
-          }
-
-          observer.observe(document.body, { childList: true, subtree: true, attributes: true });
-        }),
-      DOM_SILENCE_MS,
-    );
+    await waitForDomSilence(page);
 
     const webGlMetrics = await page.evaluate<WebGlPageMetrics>(() => {
       const canvases = Array.from(document.querySelectorAll('canvas'));
@@ -251,6 +261,72 @@ app.post<{ Body: { url?: string } }>('/scrape', async (request, reply) => {
     reply.status(500).send({
       error:
         'Unable to scrape this URL right now. Browser launch failed or timed out on this machine.',
+    });
+  } finally {
+    if (page) {
+      await page.close();
+    }
+    if (browser) {
+      await browser.close();
+    }
+  }
+});
+
+app.post<{ Body: { url?: string } }>('/design', async (request, reply) => {
+  const bodyUrl = request.body?.url;
+  if (!bodyUrl) {
+    return reply.status(400).send({ error: 'A url field is required.' });
+  }
+
+  let target: URL;
+  try {
+    target = validateUrl(bodyUrl);
+  } catch (error) {
+    return reply.status(400).send({ error: (error as Error).message });
+  }
+
+  let browser: Browser | null = null;
+  let page: Page | null = null;
+
+  try {
+    browser = await launchBrowserWithFallback(request.log);
+    page = await browser.newPage();
+
+    await page.goto(target.toString(), { waitUntil: 'networkidle', timeout: REQUEST_TIMEOUT_MS });
+    await waitForDomSilence(page);
+
+    const rawData = await extractDesignTokens(page);
+    const stream = new Readable({
+      read() {
+        // data is pushed asynchronously from generateDesignMd
+      },
+    });
+
+    reply
+      .header('Content-Type', 'text/plain; charset=utf-8')
+      .header('Transfer-Encoding', 'chunked')
+      .header('X-Content-Type-Options', 'nosniff');
+
+    const generationPromise = generateDesignMd(rawData, (chunk) => {
+      stream.push(chunk);
+    });
+
+    generationPromise
+      .then(() => {
+        stream.push(null);
+      })
+      .catch((streamError) => {
+        stream.destroy(
+          streamError instanceof Error ? streamError : new Error('DESIGN stream failed.'),
+        );
+      });
+
+    return reply.send(stream);
+  } catch (error) {
+    request.log.error(error);
+    return reply.status(500).send({
+      error:
+        'Unable to generate DESIGN.md right now. Browser launch failed, model streaming failed, or request timed out.',
     });
   } finally {
     if (page) {

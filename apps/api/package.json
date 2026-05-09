@@ -13,6 +13,7 @@
     "@fastify/cors": "^11.0.1",
     "@grabby/core": "workspace:*",
     "fastify": "^5.2.2",
+    "groq-sdk": "^0.30.0",
     "playwright": "^1.52.0"
   }
 }
